@@ -7,7 +7,7 @@ if exists("loaded_thermometer")
 endif
 let loaded_thermometer = 1
 
-function s:Hgst()
+function! s:Hgst()
   let tmpfile = tempname()
   exe "redir! > " . tmpfile
   silent echon system('hg st')
@@ -20,7 +20,7 @@ function s:Hgst()
   call delete(tmpfile)
 endfunction
 
-function s:HgSetupStatus()
+function! s:HgSetupStatus()
   if exists("s:statusSet")
     return
   endif
@@ -29,7 +29,7 @@ function s:HgSetupStatus()
   autocmd FileChangedShellPost  * call s:HgResetStatusForFiles()
 endfunction
 
-function s:HgGetStatusForFile()
+function! s:HgGetStatusForFile()
   call s:HgSetupStatus()
   let status = system('hg st ' . bufname('%'))
   if v:shell_error != 0
@@ -41,7 +41,7 @@ function s:HgGetStatusForFile()
   return strpart(status, 0, 1)
 endfunction
 
-function g:HgStatusForFile()
+function! g:HgStatusForFile()
   if strlen(bufname('%')) == 0
     return ""
   endif
@@ -54,7 +54,7 @@ function g:HgStatusForFile()
   return s:hgstatuses[ bufname('%') ]
 endfunction
 
-function g:HgStatusLine()
+function! g:HgStatusLine()
   let status = g:HgStatusForFile()
   if status == "-"
     return ""
@@ -65,11 +65,11 @@ function g:HgStatusLine()
   return "[Hg " . status . "]"
 endfunction
 
-function s:HgResetStatusForFiles()
+function! s:HgResetStatusForFiles()
   let s:hgstatuses = {}
 endfunction
 
-function s:HgDiff(...)
+function! s:HgDiff(...)
   if !exists("s:orig_diffs")
     let s:orig_diffs = {}
     let s:tmp_diffs = {}
@@ -92,7 +92,7 @@ function s:HgDiff(...)
   let s:tmp_diffs_names[tmpfile_nr] = tmpfile
 endfunction
 
-function s:HgDiffoffBuffer()
+function! s:HgDiffoffBuffer()
   if !exists("s:orig_diffs")
     return
   endif
@@ -107,7 +107,7 @@ function s:HgDiffoffBuffer()
   endif
 endfunction
 
-function s:HgDiffOff(real, diff)
+function! s:HgDiffOff(real, diff)
   execute 'bwipeout ' . a:diff
   execute 'buffer ' . a:real
   execute "diffoff"
@@ -117,7 +117,7 @@ function s:HgDiffOff(real, diff)
 
 endfunction
 
-function s:HgLog(...)
+function! s:HgLog(...)
   let tmpfile = tempname() 
   let order = "hg log"
   let order = a:0 > 0 ? (order . " -l " . a:1) : order
@@ -127,7 +127,7 @@ function s:HgLog(...)
   execute "split " . tmpfile
 endfunction
 
-function s:HgBlame(l1, ...)
+function! s:HgBlame(l1, ...)
   let tmpfile = tempname() 
   let order = "hg blame -u -n -d -q"
   let order = a:0 > 0 ? (order . " -r " . a:1) : order
@@ -140,10 +140,30 @@ function s:HgBlame(l1, ...)
 
 endfunction
 
+function! s:HgResolveList(...)
+  let tmpfile = tempname()
+  exe "redir! > " . tmpfile
+  silent echon system('hg resolve -l | grep ^U')
+  redir END
+  let old_efm = &errorformat
+  set errorformat=%m\ %f
+  execute "silent! cfile " . tmpfile
+  let &errorformat = old_efm
+  botright copen
+  call delete(tmpfile)
+endfunction
+
+function! s:HgMarkResolved()
+  silent echon system('hg resolve -m ' . expand('%'))
+  call s:HgResolveList()
+endfunction
+
 command! -nargs=0 Hgst call s:Hgst()
 command! -nargs=0 Hgstreload call s:HgResetStatusForFiles()
 command! -nargs=? Hgdiff call s:HgDiff(<f-args>)
 command! -nargs=0 Hgdiffoff call s:HgDiffoffBuffer(<f-args>)
 command! -nargs=? Hglog call s:HgLog(<f-args>)
 command! -nargs=? -range=% Hgblame call s:HgBlame(<line1>, <f-args>)
+command! -nargs=0 Hgresolve call s:HgResolveList()
+command! -nargs=0 Hgmarkresolved call s:HgMarkResolved()
 
